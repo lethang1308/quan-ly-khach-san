@@ -65,3 +65,24 @@ test('revenue groups real payments by local Vietnam payment day', () => {
     [{ date: '2026-12-24', amount: 2620000 }]
   );
 });
+test('check-in follows the server business day even if the browser clock is different', () => {
+  const booking = {
+    state: 'CONFIRMED',
+    business_date: '2026-12-23',
+    rooms: [{ start_date: '2026-12-23' }],
+  };
+  assert.equal(canCheckIn(booking), true);
+  booking.business_date = '2026-12-24';
+  assert.equal(canCheckIn(booking), false);
+});
+test('not-ready room errors explain the actual room and actionable state in Vietnamese', () => {
+  const message = (state) =>
+    errorMessage({
+      response: {
+        status: 409,
+        data: { code: 'ROOM_NOT_READY', details: { room_no: '101', state } },
+      },
+    });
+  assert.match(message('DIRTY'), /Phòng 101.*đang dọn dẹp/);
+  assert.match(message('MAINTENANCE'), /Phòng 101.*đang bảo trì/);
+});

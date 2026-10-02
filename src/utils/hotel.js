@@ -40,6 +40,16 @@ export const money = (value) =>
   }).format(Number(value) || 0);
 export function errorMessage(error) {
   const data = error?.response?.data;
+  if (data?.code === 'ROOM_NOT_READY' && data.details?.room_no) {
+    const reason =
+      {
+        DIRTY: 'đang dọn dẹp',
+        MAINTENANCE: 'đang bảo trì',
+        OCCUPIED: 'đang có khách',
+        READY: 'cần kiểm tra lịch bảo trì hoặc trạng thái kinh doanh',
+      }[data.details.state] || 'chưa sẵn sàng';
+    return `Phòng ${data.details.room_no} chưa sẵn sàng (${reason}). Vui lòng đợi buồng phòng xử lý.`;
+  }
   if (error?.response?.status === 429) {
     const seconds = Number(error.response.headers?.['retry-after'] ?? data?.retry_after);
     return Number.isFinite(seconds) && seconds > 0
@@ -69,7 +79,7 @@ export function requestIdentity(previous, payload, makeKey = () => crypto.random
   const fingerprint = JSON.stringify(payload);
   return previous?.fingerprint === fingerprint ? previous : { fingerprint, key: makeKey() };
 }
-export function canCheckIn(booking, date = today()) {
+export function canCheckIn(booking, date = booking.business_date || today()) {
   return (
     booking.state === 'CONFIRMED' &&
     booking.rooms.length > 0 &&

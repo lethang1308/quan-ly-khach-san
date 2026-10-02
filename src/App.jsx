@@ -10,6 +10,7 @@ function App() {
       <AuthProvider>
         {/* Global Toast Provider */}
         <Toaster
+          containerClassName="no-print"
           position="top-right"
           toastOptions={{
             duration: 3500,

@@ -1,5 +1,7 @@
 # EduMatch - Frontend quản lý khách sạn
 
+Giai đoạn 5: [kết quả nghiệm thu, ma trận ràng buộc và kịch bản demo](docs/PHASE_5.md).
+
 React 19 + Vite 8 + Tailwind 4, kết nối API Laravel. Giai đoạn 3-4 đã có không gian Lễ tân, Buồng phòng và Quản lý.
 
 ## Khởi chạy
