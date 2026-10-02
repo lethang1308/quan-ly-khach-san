@@ -1,94 +1,139 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  startTransition,
+} from 'react';
+import { useNavigate } from 'react-router-dom';
+import { roleHome } from '@/constants/hotel';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { storage } from '@/utils/storage';
 import { authService } from '@/services/authService';
+import { errorMessage } from '@/utils/hotel';
 
 export const AuthContext = createContext(null);
-
-export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => storage.get(STORAGE_KEYS.ACCESS_TOKEN, null));
-  const [user, setUser] = useState(() => storage.get(STORAGE_KEYS.USER_INFO, null));
-  const [loading, setLoading] = useState(true);
-
+export function AuthProvider({ children }) {
+  const navigate = useNavigate();
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(() => Boolean(storage.get(STORAGE_KEYS.ACCESS_TOKEN)));
+  const [bootError, setBootError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const operation = useRef(false);
+  const clear = useCallback(() => {
+    storage.remove(STORAGE_KEYS.ACCESS_TOKEN);
+    storage.remove(STORAGE_KEYS.USER_INFO);
+    setSession(null);
+  }, []);
+  const accept = useCallback((response, token) => {
+    const accessToken = response.access_token || token;
+    if (!accessToken || !response.user || !Array.isArray(response.roles)) {
+      throw new Error('Phản hồi xác thực không hợp lệ.');
+    }
+    storage.set(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+    storage.set(STORAGE_KEYS.USER_INFO, response.user);
+    setSession({ ...response, token: accessToken });
+    setBootError('');
+    return response;
+  }, []);
   useEffect(() => {
-    const initAuth = async () => {
-      const savedToken = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
-      const savedUser = storage.get(STORAGE_KEYS.USER_INFO);
-
-      if (savedToken) {
-        setToken(savedToken);
-        setUser(
-          savedUser || {
-            id: 'usr_1',
-            name: 'Demo Admin',
-            email: 'admin@example.com',
-            role: 'admin',
-          }
-        );
-      }
+    const controller = new AbortController();
+    const token = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
+    const expire = () => {
+      clear();
       setLoading(false);
     };
-
-    initAuth();
-  }, []);
-
-  const login = async (credentials) => {
-    setLoading(true);
+    window.addEventListener('hotel:unauthorized', expire);
+    if (token) {
+      authService
+        .getProfile(controller.signal)
+        .then((response) => {
+          if (!controller.signal.aborted) accept(response, token);
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) return;
+          if (error.response?.status === 401) clear();
+          else setBootError(errorMessage(error));
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }
+    return () => {
+      controller.abort();
+      window.removeEventListener('hotel:unauthorized', expire);
+    };
+  }, [accept, clear]);
+  const authenticate = async (action, destination) => {
+    if (operation.current) throw new Error('Vui lòng chờ thao tác xác thực hiện tại.');
+    operation.current = true;
+    setBusy(true);
     try {
-      const res = await authService.login(credentials);
-      const authToken = res?.token || 'mock_jwt_token_sample';
-      const authUser = res?.user || {
-        id: 'usr_1',
-        name: 'Demo Admin',
-        email: credentials.email || 'admin@example.com',
-        role: 'admin',
-      };
-
-      setToken(authToken);
-      setUser(authUser);
-      storage.set(STORAGE_KEYS.ACCESS_TOKEN, authToken);
-      storage.set(STORAGE_KEYS.USER_INFO, authUser);
-
-      return { success: true, user: authUser };
+      const response = await action();
+      if (destination) {
+        // Commit identity and route together; an intermediate role on the old page would trigger 403.
+        startTransition(() => {
+          accept(response);
+          navigate(destination, { replace: true });
+          setBusy(false);
+        });
+      } else {
+        accept(response);
+        setBusy(false);
+      }
+      return response;
     } catch (error) {
-      return {
-        success: false,
-        message: error?.response?.data?.message || 'Đăng nhập không thành công!',
-      };
+      setBusy(false);
+      throw error;
     } finally {
-      setLoading(false);
+      operation.current = false;
     }
   };
-
+  const login = (credentials) => authenticate(() => authService.login(credentials));
+  const quickSwitch = (role, destination = roleHome(role)) =>
+    authenticate(() => authService.quickSwitch(role), destination);
   const logout = async () => {
+    if (operation.current) return;
+    operation.current = true;
+    setBusy(true);
     try {
       await authService.logout();
     } finally {
-      setToken(null);
-      setUser(null);
-      storage.remove(STORAGE_KEYS.ACCESS_TOKEN);
-      storage.remove(STORAGE_KEYS.USER_INFO);
+      clear();
+      operation.current = false;
+      setBusy(false);
     }
   };
-
-  const value = {
-    user,
-    token,
-    isAuthenticated: Boolean(token),
-    loading,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
+  const roles = session?.roles || [];
+  const role =
+    ['manager', 'receptionist', 'housekeeping'].find((value) => roles.includes(value)) || null;
+  return (
+    <AuthContext.Provider
+      value={{
+        user: session?.user,
+        token: session?.token,
+        roles,
+        role,
+        permissions: session?.permissions || [],
+        canQuickSwitch: session?.demo_switch_allowed === true,
+        isAuthenticated: Boolean(session),
+        loading,
+        bootError,
+        busy,
+        login,
+        logout,
+        quickSwitch,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth cần AuthProvider.');
   return context;
-};
-
+}
 export default AuthContext;

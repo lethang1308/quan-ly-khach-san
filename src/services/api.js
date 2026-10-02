@@ -2,69 +2,32 @@ import axios from 'axios';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { storage } from '@/utils/storage';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-
-/**
- * Main Axios instance for API communication
- */
 export const api = axios.create({
-  baseURL,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
-  timeout: 15000,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+  timeout: 20000,
 });
-
-/**
- * Request Interceptor:
- * Tự động đính kèm Bearer token vào Header nếu token tồn tại trong localStorage
- */
-api.interceptors.request.use(
-  (config) => {
-    const token = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-/**
- * Response Interceptor:
- * Xử lý kết quả trả về và xử lý lỗi tập trung (401, 403, 500)
- */
+api.interceptors.request.use((config) => {
+  const token = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 api.interceptors.response.use(
-  (response) => {
-    return response.data;
-  },
+  (response) => response.data,
   (error) => {
-    if (error.response) {
-      const { status } = error.response;
-
-      // 401: Unauthorized - Token hết hạn hoặc không hợp lệ
-      if (status === 401) {
-        storage.remove(STORAGE_KEYS.ACCESS_TOKEN);
-        storage.remove(STORAGE_KEYS.USER_INFO);
-        // Không redirect cưỡng chế trực tiếp ở đây để tránh navigation loop
-      }
-
-      // 403: Forbidden - Không có quyền truy cập
-      if (status === 403) {
-        console.warn('Truy cập bị từ chối (403 Forbidden).');
-      }
-
-      // 500: Server Error - Lỗi máy chủ nội bộ
-      if (status >= 500) {
-        console.error('Lỗi hệ thống máy chủ (500 Server Error).');
-      }
-    } else {
-      console.error('Không thể kết nối đến máy chủ mạng hoặc timeout.');
+    // A late response from the old demo session must never clear a newly switched token.
+    const current = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
+    if (
+      error.response?.status === 401 &&
+      current &&
+      error.config?.headers?.Authorization === `Bearer ${current}` &&
+      !error.config.url.includes('/auth/login')
+    ) {
+      storage.remove(STORAGE_KEYS.ACCESS_TOKEN);
+      storage.remove(STORAGE_KEYS.USER_INFO);
+      window.dispatchEvent(new Event('hotel:unauthorized'));
     }
-
     return Promise.reject(error);
   }
 );
-
 export default api;

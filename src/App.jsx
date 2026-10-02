@@ -14,11 +14,11 @@ function App() {
           toastOptions={{
             duration: 3500,
             style: {
-              background: '#ffffff',
-              color: '#0f172a',
-              border: '1px solid #e2e8f0',
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
               borderRadius: '0.75rem',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+              boxShadow: 'var(--shadow)',
               fontSize: '0.875rem',
             },
           }}
