@@ -55,7 +55,7 @@ npm install
 npm run dev
 ```
 
-VITE_API_BASE_URL trong .env: http://localhost:8000/api. BE chạy php artisan serve ở cổng 8000.
+VITE_API_URL trong .env: http://localhost:8000 (FE tự thêm /api). Biến cũ VITE_API_BASE_URL=http://localhost:8000/api vẫn được hỗ trợ. BE chạy php artisan serve ở cổng 8000.
 
 Demo: manager / receptionist / housekeeping, mật khẩu password, tương ứng số 0901000001 / 0901000002 / 0901000003. Tài khoản nhân viên mới được cấp mật khẩu từ 8 ký tự và chỉ đăng nhập bằng số điện thoại.
 

@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { storage } from '@/utils/storage';
+import { APP_CONFIG } from '@/config/app';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: APP_CONFIG.apiBaseUrl,
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
   timeout: 20000,
 });

@@ -77,7 +77,7 @@ Terminal FE riêng:
 
 ```powershell
 cd D:\EduMatch\quan-ly-khach-san
-$env:VITE_API_BASE_URL = 'http://127.0.0.1:8001/api'
+$env:VITE_API_URL = 'http://127.0.0.1:8001'
 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
@@ -116,7 +116,7 @@ Sau đó dọn qua UI. Để demo mới: dừng hai server kiểm thử bằng C
 & $hotelPhp scripts/hotel_phase5_demo.php prepare
 ```
 
-Cleanup chỉ xóa schema đúng mẫu demo. Xóa override trong terminal FE riêng sau khi dùng bằng Remove-Item Env:VITE_API_BASE_URL; .env chính được giữ nguyên.
+Cleanup chỉ xóa schema đúng mẫu demo. Xóa override trong terminal FE riêng sau khi dùng bằng Remove-Item Env:VITE_API_URL; .env chính được giữ nguyên.
 
 ## Nghiệm thu trên trình duyệt thực tế
 

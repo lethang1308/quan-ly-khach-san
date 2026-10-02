@@ -15,7 +15,11 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Cấu hình `VITE_API_BASE_URL=http://localhost:8000/api` trong .env.
+Cấu hình `VITE_API_URL=http://localhost:8000` trong .env. FE tự thêm `/api` và dùng chung cấu hình cho toàn bộ Axios services.
+
+Trên Vercel, đặt `VITE_API_URL=https://admin-edumatch.onrender.com` cho môi trường deploy cần dùng, rồi Redeploy để build nhận giá trị mới. API base URL sẽ là `https://admin-edumatch.onrender.com/api`.
+
+`VITE_API_URL` được ưu tiên hơn biến cũ `VITE_API_BASE_URL` (URL đầy đủ có `/api`). File .env local cũ vẫn được hỗ trợ; nếu không có biến nào, dev dùng localhost:8000/api, production dùng đường dẫn cùng origin `/api`.
 
 Chọn vai trò demo ở trang đăng nhập; hoặc đăng nhập bằng số điện thoại của nhân viên. Header cho phép chuyển nhanh giữa ba tài khoản demo khi BE bật demo local/testing.
 
